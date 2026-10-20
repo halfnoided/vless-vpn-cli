@@ -17,26 +17,30 @@ class Strategy(BaseModel):
 
     # Temporarily set, used to tell Pydantic to ignore
     # validation check for unknown fields (if presented)
-    model_config = ConfigDict(extra="allow")
+    # TODO: explicitly validate input according to model fields
+    model_config = ConfigDict(extra="allow") # <-- FIXME
     
     uuid: str
     address: str
     port: NonNegativeInt
 
     encryption: str = "none"
-    network_type: str = Field(alias="type")
+    network_type: str = Field(alias="type", default="tcp")
     security: str = "none"
 
-    #---security: tls or reality---
+    # tls / reality
     server_name: str | None = Field(alias="sni", default=None)
-
-    #---security: reality---
     public_key: str | None = Field(alias="pbk", default=None)
     fingerprint: str | None = Field(alias="fp", default=None)
     short_id: str | None = Field(alias="sid", default=None)
+    flow: str | None = None # <-- if network_type is tcp
 
-    #---network: ws, httpupgrade, xhttp---
+    # ws / httpupgrade / xhttp
     path: str | None = None
+    host_header: str | None = Field(alias="host", default=None)
 
-    #---strategy name/tag/label---
+    #  grpc
+    service_name: str | None = Field(alias="serviceName", default=None)
+
+    # label / fragment
     label: str | None = Field(alias="fragment", default=None)

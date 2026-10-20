@@ -1,21 +1,39 @@
 from urllib.parse import urlparse, urlsplit, parse_qs
 from models.models import Strategy
 
-vless_strategy_uri: str = "vless://18f72be7-0651-4037-928b-8a309d685796@194.107.126.157:443?security=reality&encryption=none&pbk=qFBIVGsvXTMeJcdJz6GiL7DG0XNhCg7rItza7t0qTgU&fp=chrome&sni=google.com&sid=9eb31eb7572c0882&flow=xtls-rprx-vision&type=tcp#MyVLESS"
-
 def vless_uri_resolver(uri: str) -> Strategy:
     uri_parameters = urlsplit(uri)
     query_parameters = uri_parameters.query.split("&")
     
     parsed_query: dict[str, str] = dict(
-        parameter.split("=", 1) for parameter in query_parameters if parameter
+        field.split("=", 1) for field in query_parameters
+        if field
         )
         
+    # Validate query fields with model fields
+    fields_data: dict = Strategy.model_fields
+    
+    allowed_fields: set = set(fields_data.keys())
+    allowed_aliases: set = {
+        field.alias for field in fields_data.values()
+        if field.alias 
+        }
+    # Operator "|" works as "+", but does not repeat elements
+    ALLOWED = allowed_fields | allowed_aliases
+    
+    # Exclude allowed elements to get unknown fields
+    unknown_fields: set = set(parsed_query.keys()) - ALLOWED
+    if unknown_fields:
+        raise ValueError(f"Unknown vless data fields: {unknown_fields}.")
+    
+    # Get uuid, resolve host as address and port  
     uuid, _, host = uri_parameters.netloc.partition("@")
     if not host:
-        raise ValueError("Invalid vless URI: missing '@'.")
+        raise ValueError("Invalid vless uri: missing '@'.")
     address, _, port = host.partition(":")
-    label = uri_parameters.fragment
+    if not port:
+        raise ValueError("Invalid vless uri: missing port.")
+    label = uri_parameters.fragment or None
 
     strategy_data: dict[str, str | None] = {
         "uuid": uuid,
